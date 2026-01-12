@@ -16,3 +16,5 @@ computed by `SumOf2Transform` transformations and are displayed in the rectangle
 
 Those rectangles are equipped with `NumericControl` mouse controls, which control
 coefficients in those linear combinations.
+
+A recorded video of 30 seconds of interacting with this program is available here, if that helps: https://www.youtube.com/watch?v=fEWcg_A5UZc
