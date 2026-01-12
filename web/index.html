@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluid Port - Interactive Image Transforms</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #333;
+            font-family: monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #container {
+            background: #7f7f7f;
+        }
+        canvas {
+            display: block;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        // Vertex shader for rendering textured quads
+        const vertexShaderSource = `#version 300 es
+        in vec2 a_position;
+        in vec2 a_texCoord;
+        out vec2 v_texCoord;
+
+        void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+            v_texCoord = a_texCoord;
+        }
+        `;
+
+        // Fragment shader for copying/displaying textures
+        const copyFragmentShaderSource = `#version 300 es
+        precision highp float;
+        in vec2 v_texCoord;
+        uniform sampler2D u_texture;
+        out vec4 fragColor;
+
+        void main() {
+            fragColor = texture(u_texture, v_texCoord);
+        }
+        `;
+
+        // Custom wave transform shader
+        const waveFragmentShaderSource = `#version 300 es
+        precision highp float;
+        in vec2 v_texCoord;
+        uniform sampler2D u_texture;
+        uniform vec2 u_center;
+        uniform float u_time;
+        uniform float u_distanceCoef;
+        out vec4 fragColor;
+
+        void main() {
+            vec2 coord = v_texCoord;
+            float d = distance(coord, u_center);
+            float shift = u_time / (1.0 + 0.01 * u_time);
+            float mod = 0.25 * sin(u_distanceCoef * (d / u_time + shift)) + 0.75;
+            vec2 displaced = u_center + (coord - u_center) * mod;
+
+            if (displaced.x >= 0.0 && displaced.x <= 1.0 &&
+                displaced.y >= 0.0 && displaced.y <= 1.0) {
+                fragColor = texture(u_texture, displaced);
+            } else {
+                fragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            }
+        }
+        `;
+
+        // Negation (invert) transform shader
+        const negationFragmentShaderSource = `#version 300 es
+        precision highp float;
+        in vec2 v_texCoord;
+        uniform sampler2D u_texture;
+        out vec4 fragColor;
+
+        void main() {
+            vec4 color = texture(u_texture, v_texCoord);
+            fragColor = vec4(1.0 - color.rgb, color.a);
+        }
+        `;
+
+        // Sum of 2 textures (blend) transform shader
+        const sumOf2FragmentShaderSource = `#version 300 es
+        precision highp float;
+        in vec2 v_texCoord;
+        uniform sampler2D u_texture1;
+        uniform sampler2D u_texture2;
+        uniform float u_interpolation;
+        out vec4 fragColor;
+
+        void main() {
+            vec4 color1 = texture(u_texture1, v_texCoord);
+            vec4 color2 = texture(u_texture2, v_texCoord);
+            fragColor = mix(color1, color2, u_interpolation);
+        }
+        `;
+
+        // Numeric control (slider) rendering shader
+        const sliderFragmentShaderSource = `#version 300 es
+        precision highp float;
+        in vec2 v_texCoord;
+        uniform float u_value;
+        out vec4 fragColor;
+
+        void main() {
+            vec2 coord = v_texCoord;
+            float y = 1.0 - coord.y; // Invert Y for bottom-to-top
+
+            // Background
+            vec3 color = vec3(0.7);
+
+            // Left rectangle showing current value
+            if (coord.x >= 0.2 && coord.x < 0.4 && y >= 0.1 && y < 0.9) {
+                color = mix(vec3(0.0), vec3(1.0), u_value);
+            }
+
+            // Right rectangle showing slider scale
+            if (coord.x >= 0.6 && coord.x < 0.8 && y >= 0.1 && y < 0.9) {
+                float sliderValue = (y - 0.1) / 0.8;
+                if (sliderValue <= u_value) {
+                    color = vec3(0.0);
+                } else {
+                    color = vec3(1.0);
+                }
+            }
+
+            fragColor = vec4(color, 1.0);
+        }
+        `;
+
+        class WebGLApp {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.gl = this.canvas.getContext('webgl2');
+
+                if (!this.gl) {
+                    alert('WebGL2 not supported');
+                    return;
+                }
+
+                // Configuration
+                this.sideSize = 450;
+                this.marginSize = 5;
+                this.sliderWidth = 50;
+                this.secondSize = this.sideSize + 2 * this.marginSize;
+                this.thirdSize = 2 * this.sideSize + 3 * this.marginSize;
+                this.canvasWidth = this.thirdSize + this.sliderWidth + this.marginSize;
+                this.canvasHeight = this.thirdSize;
+
+                this.canvas.width = this.canvasWidth;
+                this.canvas.height = this.canvasHeight;
+
+                // Frame counter
+                this.frameCount = 0;
+
+                // Controls state
+                this.control1 = {
+                    centerX: 0.5,
+                    centerY: 0.5,
+                    frameBase: 0,
+                    bounds: {
+                        x: this.marginSize,
+                        y: this.secondSize,
+                        width: this.sideSize,
+                        height: this.sideSize
+                    }
+                };
+
+                this.control2 = {
+                    centerX: 0.5,
+                    centerY: 0.5,
+                    frameBase: 0,
+                    bounds: {
+                        x: this.marginSize,
+                        y: this.marginSize,
+                        width: this.sideSize,
+                        height: this.sideSize
+                    }
+                };
+
+                this.slider1 = {
+                    value: 0.5,
+                    bounds: {
+                        x: this.thirdSize,
+                        y: this.marginSize,
+                        width: this.sliderWidth,
+                        height: this.sideSize
+                    }
+                };
+
+                this.slider2 = {
+                    value: 0.5,
+                    bounds: {
+                        x: this.thirdSize,
+                        y: this.secondSize,
+                        width: this.sliderWidth,
+                        height: this.sideSize
+                    }
+                };
+
+                this.init();
+            }
+
+            async init() {
+                const gl = this.gl;
+
+                // Create shader programs
+                this.copyProgram = this.createProgram(vertexShaderSource, copyFragmentShaderSource);
+                this.waveProgram = this.createProgram(vertexShaderSource, waveFragmentShaderSource);
+                this.negationProgram = this.createProgram(vertexShaderSource, negationFragmentShaderSource);
+                this.sumOf2Program = this.createProgram(vertexShaderSource, sumOf2FragmentShaderSource);
+                this.sliderProgram = this.createProgram(vertexShaderSource, sliderFragmentShaderSource);
+
+                // Create quad buffer
+                this.createQuadBuffer();
+
+                // Load input image
+                await this.loadInputImage('Before elections 015.JPG');
+
+                // Create framebuffers and textures for layers
+                this.createLayers();
+
+                // Setup mouse interaction
+                this.setupMouseHandlers();
+
+                // Start animation loop
+                this.animate();
+            }
+
+            createShader(type, source) {
+                const gl = this.gl;
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.error('Shader compilation error:', gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                    return null;
+                }
+
+                return shader;
+            }
+
+            createProgram(vertexSource, fragmentSource) {
+                const gl = this.gl;
+                const vertexShader = this.createShader(gl.VERTEX_SHADER, vertexSource);
+                const fragmentShader = this.createShader(gl.FRAGMENT_SHADER, fragmentSource);
+
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    console.error('Program linking error:', gl.getProgramInfoLog(program));
+                    return null;
+                }
+
+                return program;
+            }
+
+            createQuadBuffer() {
+                const gl = this.gl;
+
+                const positions = new Float32Array([
+                    -1, -1,  0, 0,
+                     1, -1,  1, 0,
+                    -1,  1,  0, 1,
+                    -1,  1,  0, 1,
+                     1, -1,  1, 0,
+                     1,  1,  1, 1
+                ]);
+
+                this.quadBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+            }
+
+            setupVertexAttributes(program) {
+                const gl = this.gl;
+
+                const positionLoc = gl.getAttribLocation(program, 'a_position');
+                const texCoordLoc = gl.getAttribLocation(program, 'a_texCoord');
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+
+                gl.enableVertexAttribArray(positionLoc);
+                gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 16, 0);
+
+                gl.enableVertexAttribArray(texCoordLoc);
+                gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 16, 8);
+            }
+
+            async loadInputImage(url) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const gl = this.gl;
+                        this.inputTexture = gl.createTexture();
+                        gl.bindTexture(gl.TEXTURE_2D, this.inputTexture);
+                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+                        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                        resolve();
+                    };
+                    img.onerror = reject;
+                    img.src = url;
+                });
+            }
+
+            createLayer() {
+                const gl = this.gl;
+                const width = this.sideSize;
+                const height = this.sideSize;
+
+                // Create two textures for double buffering
+                const texture1 = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, texture1);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+                const texture2 = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, texture2);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+                // Create framebuffers
+                const framebuffer1 = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer1);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture1, 0);
+
+                const framebuffer2 = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer2);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture2, 0);
+
+                return {
+                    readTexture: texture1,
+                    writeTexture: texture2,
+                    readFramebuffer: framebuffer1,
+                    writeFramebuffer: framebuffer2,
+                    width: width,
+                    height: height
+                };
+            }
+
+            createLayers() {
+                this.layer1_1 = this.createLayer();
+                this.layer2_1 = this.createLayer();
+                this.layer3_1 = this.createLayer();
+                this.layer4_1 = this.createLayer();
+                this.layer4_2 = this.createLayer();
+
+                // Create slider textures and framebuffers
+                this.slider1Texture = this.createSliderTexture();
+                this.slider2Texture = this.createSliderTexture();
+            }
+
+            createSliderTexture() {
+                const gl = this.gl;
+                const texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.sliderWidth, this.sideSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+                const framebuffer = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+
+                return { texture, framebuffer };
+            }
+
+            swapLayer(layer) {
+                const temp = layer.readTexture;
+                layer.readTexture = layer.writeTexture;
+                layer.writeTexture = temp;
+
+                const tempFb = layer.readFramebuffer;
+                layer.readFramebuffer = layer.writeFramebuffer;
+                layer.writeFramebuffer = tempFb;
+            }
+
+            applyWaveTransform(inputLayer, outputLayer, control, distanceCoef) {
+                const gl = this.gl;
+                const program = this.waveProgram;
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, outputLayer.writeFramebuffer);
+                gl.viewport(0, 0, outputLayer.width, outputLayer.height);
+
+                gl.useProgram(program);
+                this.setupVertexAttributes(program);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, inputLayer.readTexture || inputLayer);
+                gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+
+                const effectiveFrameCount = this.frameCount - control.frameBase;
+                gl.uniform2f(gl.getUniformLocation(program, 'u_center'), control.centerX, control.centerY);
+                gl.uniform1f(gl.getUniformLocation(program, 'u_time'), Math.max(effectiveFrameCount, 1.0));
+                gl.uniform1f(gl.getUniformLocation(program, 'u_distanceCoef'), distanceCoef);
+
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+            }
+
+            applyNegationTransform(inputLayer, outputLayer) {
+                const gl = this.gl;
+                const program = this.negationProgram;
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, outputLayer.writeFramebuffer);
+                gl.viewport(0, 0, outputLayer.width, outputLayer.height);
+
+                gl.useProgram(program);
+                this.setupVertexAttributes(program);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, inputLayer.readTexture);
+                gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+            }
+
+            applySumOf2Transform(input1Layer, input2Layer, outputLayer, interpolation) {
+                const gl = this.gl;
+                const program = this.sumOf2Program;
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, outputLayer.writeFramebuffer);
+                gl.viewport(0, 0, outputLayer.width, outputLayer.height);
+
+                gl.useProgram(program);
+                this.setupVertexAttributes(program);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, input1Layer.readTexture || input1Layer);
+                gl.uniform1i(gl.getUniformLocation(program, 'u_texture1'), 0);
+
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, input2Layer.readTexture);
+                gl.uniform1i(gl.getUniformLocation(program, 'u_texture2'), 1);
+
+                gl.uniform1f(gl.getUniformLocation(program, 'u_interpolation'), interpolation);
+
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+            }
+
+            renderSlider(sliderObj) {
+                const gl = this.gl;
+                const program = this.sliderProgram;
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, sliderObj.framebuffer);
+                gl.viewport(0, 0, this.sliderWidth, this.sideSize);
+
+                gl.useProgram(program);
+                this.setupVertexAttributes(program);
+
+                gl.uniform1f(gl.getUniformLocation(program, 'u_value'), sliderObj.value);
+
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+            }
+
+            renderTextureToCanvas(texture, x, y, width, height) {
+                const gl = this.gl;
+                const program = this.copyProgram;
+
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                gl.viewport(x, this.canvasHeight - y - height, width, height);
+
+                gl.useProgram(program);
+                this.setupVertexAttributes(program);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.uniform1i(gl.getUniformLocation(program, 'u_texture'), 0);
+
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+            }
+
+            applyTransforms() {
+                // Transform pipeline matching the Processing code
+                // transform_to_1: input_1 -> layer_1_1 (wave with control1)
+                this.applyWaveTransform(this.inputTexture, this.layer1_1, this.control1, 0.5);
+
+                // transform_to_2: layer_1_1 -> layer_2_1 (negation)
+                this.applyNegationTransform(this.layer1_1, this.layer2_1);
+
+                // transform_to_3: layer_2_1 -> layer_3_1 (wave with control2)
+                this.applyWaveTransform(this.layer2_1, this.layer3_1, this.control2, 1.0);
+
+                // transform_to_4_1: input_1 + layer_3_1 -> layer_4_1 (blend with slider1)
+                this.applySumOf2Transform(this.inputTexture, this.layer3_1, this.layer4_1, this.slider1.value);
+
+                // transform_to_4_2: layer_1_1 + layer_3_1 -> layer_4_2 (blend with slider2)
+                this.applySumOf2Transform(this.layer1_1, this.layer3_1, this.layer4_2, this.slider2.value);
+
+                // Render sliders
+                this.slider1Texture.value = this.slider1.value;
+                this.slider2Texture.value = this.slider2.value;
+                this.renderSlider(this.slider1Texture);
+                this.renderSlider(this.slider2Texture);
+            }
+
+            shiftData() {
+                // Swap double buffers
+                this.swapLayer(this.layer1_1);
+                this.swapLayer(this.layer2_1);
+                this.swapLayer(this.layer3_1);
+                this.swapLayer(this.layer4_1);
+                this.swapLayer(this.layer4_2);
+            }
+
+            drawImages() {
+                const gl = this.gl;
+
+                // Clear canvas to background gray
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                gl.viewport(0, 0, this.canvasWidth, this.canvasHeight);
+                gl.clearColor(0.5, 0.5, 0.5, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+
+                // Render layers to canvas in grid layout
+                // Bottom left: layer_1_1
+                this.renderTextureToCanvas(this.layer1_1.readTexture,
+                    this.marginSize, this.secondSize, this.sideSize, this.sideSize);
+
+                // Top left: layer_3_1
+                this.renderTextureToCanvas(this.layer3_1.readTexture,
+                    this.marginSize, this.marginSize, this.sideSize, this.sideSize);
+
+                // Top right: layer_4_1
+                this.renderTextureToCanvas(this.layer4_1.readTexture,
+                    this.secondSize, this.marginSize, this.sideSize, this.sideSize);
+
+                // Bottom right: layer_4_2
+                this.renderTextureToCanvas(this.layer4_2.readTexture,
+                    this.secondSize, this.secondSize, this.sideSize, this.sideSize);
+
+                // Sliders
+                this.renderTextureToCanvas(this.slider1Texture.texture,
+                    this.thirdSize, this.marginSize, this.sliderWidth, this.sideSize);
+
+                this.renderTextureToCanvas(this.slider2Texture.texture,
+                    this.thirdSize, this.secondSize, this.sliderWidth, this.sideSize);
+            }
+
+            animate() {
+                this.frameCount++;
+
+                this.applyTransforms();
+                this.shiftData();
+                this.drawImages();
+
+                requestAnimationFrame(() => this.animate());
+            }
+
+            handleClick(x, y) {
+                // Check if click is in control1 bounds
+                if (x >= this.control1.bounds.x && x < this.control1.bounds.x + this.control1.bounds.width &&
+                    y >= this.control1.bounds.y && y < this.control1.bounds.y + this.control1.bounds.height) {
+                    const localX = (x - this.control1.bounds.x) / this.control1.bounds.width;
+                    const localY = (y - this.control1.bounds.y) / this.control1.bounds.height;
+                    this.control1.centerX = localX;
+                    this.control1.centerY = localY;
+                    this.control1.frameBase = this.frameCount;
+                }
+
+                // Check if click is in control2 bounds
+                if (x >= this.control2.bounds.x && x < this.control2.bounds.x + this.control2.bounds.width &&
+                    y >= this.control2.bounds.y && y < this.control2.bounds.y + this.control2.bounds.height) {
+                    const localX = (x - this.control2.bounds.x) / this.control2.bounds.width;
+                    const localY = (y - this.control2.bounds.y) / this.control2.bounds.height;
+                    this.control2.centerX = localX;
+                    this.control2.centerY = localY;
+                    this.control2.frameBase = this.frameCount;
+                }
+
+                // Check if click is in slider1 bounds
+                if (x >= this.slider1.bounds.x && x < this.slider1.bounds.x + this.slider1.bounds.width &&
+                    y >= this.slider1.bounds.y && y < this.slider1.bounds.y + this.slider1.bounds.height) {
+                    const localY = (y - this.slider1.bounds.y) / this.slider1.bounds.height;
+                    const invertedY = 1.0 - localY;
+                    let delta = invertedY - 0.1;
+                    if (delta < 0.0) delta = 0.0;
+                    delta = delta / 0.8;
+                    if (delta > 1.0) delta = 1.0;
+                    this.slider1.value = delta;
+                }
+
+                // Check if click is in slider2 bounds
+                if (x >= this.slider2.bounds.x && x < this.slider2.bounds.x + this.slider2.bounds.width &&
+                    y >= this.slider2.bounds.y && y < this.slider2.bounds.y + this.slider2.bounds.height) {
+                    const localY = (y - this.slider2.bounds.y) / this.slider2.bounds.height;
+                    const invertedY = 1.0 - localY;
+                    let delta = invertedY - 0.1;
+                    if (delta < 0.0) delta = 0.0;
+                    delta = delta / 0.8;
+                    if (delta > 1.0) delta = 1.0;
+                    this.slider2.value = delta;
+                }
+            }
+
+            setupMouseHandlers() {
+                const getMousePos = (e) => {
+                    const rect = this.canvas.getBoundingClientRect();
+                    return {
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                    };
+                };
+
+                this.canvas.addEventListener('mousedown', (e) => {
+                    const pos = getMousePos(e);
+                    this.handleClick(pos.x, pos.y);
+                    this.isDragging = true;
+                });
+
+                this.canvas.addEventListener('mousemove', (e) => {
+                    if (this.isDragging) {
+                        const pos = getMousePos(e);
+                        this.handleClick(pos.x, pos.y);
+                    }
+                });
+
+                this.canvas.addEventListener('mouseup', () => {
+                    this.isDragging = false;
+                });
+
+                this.canvas.addEventListener('mouseleave', () => {
+                    this.isDragging = false;
+                });
+            }
+        }
+
+        // Start the application
+        window.addEventListener('load', () => {
+            new WebGLApp();
+        });
+    </script>
+</body>
+</html>
