@@ -71,19 +71,22 @@ Opus 4.5:
 >Let me check the official Claude Code documentation for the specific web onboarding process.
 >
 >Now I have the official documentation. Here's how connecting GitHub works for Claude Code on the web:
+>
+>**The setup process:**
+>
+> 1. Visit claude.ai/code
+> 2. Connect your GitHub account
+> 3. Install the Claude GitHub app in your repositories
+> 4. Select your default environment
+> 5. Submit your coding task
 
->#The setup process:
-
-Visit claude.ai/code
-Connect your GitHub account
-Install the Claude GitHub app in your repositories
-Select your default environment
-Submit your coding task
-
-It uses a GitHub App, not fine-grained tokens:
-Claude Code on the web uses a GitHub App that you install on your repositories, rather than fine-grained personal access tokens that you'd create yourself. When you install the app, you choose which repositories to grant access to.
-How the security works behind the scenes:
-All GitHub operations go through a dedicated proxy service. Inside the sandbox, the git client authenticates using a custom-built scoped credential. The proxy:
+>**It uses a GitHub App, not fine-grained tokens:**
+>
+>Claude Code on the web uses a **GitHub App** that you install on your repositories, rather than fine-grained personal access tokens that you'd create yourself. When you install the app, you choose which repositories to grant access to.
+>
+>**How the security works behind the scenes:**
+>
+>All GitHub operations go through a dedicated proxy service. Inside the sandbox, the git client authenticates using a custom-built scoped credential. The proxy:
 
 Manages GitHub authentication securely—the git client uses a scoped credential inside the sandbox, which the proxy verifies and translates to your actual GitHub authentication token
 Restricts git push operations to the current working branch for safety
