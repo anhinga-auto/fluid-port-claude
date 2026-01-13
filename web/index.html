@@ -171,6 +171,7 @@
 
                 // Frame counter
                 this.frameCount = 0;
+                this.startTime = performance.now();
 
                 // Controls state
                 this.control1 = {
@@ -573,7 +574,8 @@
             }
 
             animate() {
-                this.frameCount++;
+                const elapsed = performance.now() - this.startTime;
+                this.frameCount = Math.floor(elapsed / (1000 / 60)); // virtual frames at 60fps
 
                 this.applyTransforms();
                 this.shiftData();
