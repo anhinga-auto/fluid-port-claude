@@ -87,13 +87,14 @@ Opus 4.5:
 >**How the security works behind the scenes:**
 >
 >All GitHub operations go through a dedicated proxy service. Inside the sandbox, the git client authenticates using a custom-built scoped credential. The proxy:
-
-Manages GitHub authentication securely—the git client uses a scoped credential inside the sandbox, which the proxy verifies and translates to your actual GitHub authentication token
-Restricts git push operations to the current working branch for safety
-Enables cloning, fetching, and PR operations while maintaining security boundaries
-
-Your actual GitHub credentials are never inside the sandbox with Claude Code. Authentication is handled through the secure proxy using scoped credentials.
-So in short: You don't need to manually create tokens. You install the Claude GitHub App, select which repositories it can access, and the system handles authentication securely through a proxy that limits what Claude can do (like only pushing to the current working branch).
+>
+> * Manages GitHub authentication securely—the git client uses a scoped credential inside the sandbox, which the proxy verifies and translates to your actual GitHub authentication token
+> * Restricts git push operations to the current working branch for safety
+> * Enables cloning, fetching, and PR operations while maintaining security boundaries
+>
+>Your actual GitHub credentials are never inside the sandbox with Claude Code. Authentication is handled through the secure proxy using scoped credentials.
+>
+>**So in short:** You don't need to manually create tokens. You install the Claude GitHub App, select which repositories it can access, and the system handles authentication securely through a proxy that limits what Claude can do (like only pushing to the current working branch).
 
 
 
