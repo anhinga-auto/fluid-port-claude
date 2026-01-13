@@ -24,3 +24,25 @@ I asked some future-looking (not immediately relevant) questions before proceedi
 
 >Thanks! On one hand, I am just pondering doing an experimental port of a piece of software, but I am also pondering possible future extensions, and I am not quite sure. One more question: recently people started to introduce autodiff in connection with some shader frameworks. In this sense, do you know of anything relevant to our current conversation?
 
+At this point, I paused the conversation with ChatGPT and continued only with Claude AI (in part, because it was more crisp with the last question, and I did not want to get too involved in that cul-de-sac, in part, because I wanted to start with Claude Code for a number of reasons (everyone was talking about it, so more was known about it; also ChatGPT had always been my main AI platform, and I knew that agentic use affects the situation (e.g. with usage limits, and other factors, for example, ChatGPT used to ask to turn 2FA on if one was trying to use Codex (which was the reason, I turned it on back when I first looked at Codex a while ago ;-)), so I thought it was better to experiment first in a platform which was less essential for me day-to-day so far)).
+
+Claude Opus 4.5:
+
+>... Would you like me to search for the current state of any of these—particularly Taichi's web story or Slang's toolchain?
+
+ME:
+
+>Thanks! Yes, I'd love to be more up to date in this sense.
+
+>Thanks! Rose is very interesting, I have not known about it. Unfortunately, it progressed to 0.4.10 in April 2024 and then stopped progressing. Yes, I think it makes sense to start with plain shaders for now. I am going to prepare a project for Claude Code. How should I instruct Claude Code? (I'll create a dedicated GitHub repository for this project, and I'll have a subdirectory with Processing code to be ported. I'd like an equivalent JS-oriented shader-based version and the instructions for how to run it. Where should I put the information for Claude Code in that repository?)
+
+At that Claude AI gave me a suggested structure of the project and a sketch for CLAUDE.md (and I lightly edited all that, in particular, choosing WebGL2 over WebGPU, keeping my old name for the directory containing Processing code.
+
+Then I asked 
+
+>Thanks! You have this nice shader prototype above for the warp. Should I place it somewhere as an example, or should I just let Claude Code to cook?
+
+and Claude Opus 4.5 suggested that it might be a good idea to put that right into CLAUDE.md, but when I started working with Claude Code I forgot to do that, and it was fine, there was no need to do that (I was using Sonnet 4.5 under Claude Code, because that was all that's available at a minimal paid plan (with the minimal payment plan, Opus 4.5 was available only in Chat, but not in Claude Code) and Opus 4.5 was a smarter system, but Sonnet 4.5 was pretty smart too and often sufficient).
+
+
+
