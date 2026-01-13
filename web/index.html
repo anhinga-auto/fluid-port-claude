@@ -591,7 +591,7 @@
                     const localX = (x - this.control1.bounds.x) / this.control1.bounds.width;
                     const localY = (y - this.control1.bounds.y) / this.control1.bounds.height;
                     this.control1.centerX = localX;
-                    this.control1.centerY = localY;
+                    this.control1.centerY = 1.0 - localY; // Flip Y: canvas Y goes down, texture Y goes up
                     this.control1.frameBase = this.frameCount;
                 }
 
@@ -601,7 +601,7 @@
                     const localX = (x - this.control2.bounds.x) / this.control2.bounds.width;
                     const localY = (y - this.control2.bounds.y) / this.control2.bounds.height;
                     this.control2.centerX = localX;
-                    this.control2.centerY = localY;
+                    this.control2.centerY = 1.0 - localY; // Flip Y: canvas Y goes down, texture Y goes up
                     this.control2.frameBase = this.frameCount;
                 }
 
@@ -609,8 +609,8 @@
                 if (x >= this.slider1.bounds.x && x < this.slider1.bounds.x + this.slider1.bounds.width &&
                     y >= this.slider1.bounds.y && y < this.slider1.bounds.y + this.slider1.bounds.height) {
                     const localY = (y - this.slider1.bounds.y) / this.slider1.bounds.height;
-                    const invertedY = 1.0 - localY;
-                    let delta = invertedY - 0.1;
+                    // Don't flip Y here - the shader already handles the flip
+                    let delta = localY - 0.1;
                     if (delta < 0.0) delta = 0.0;
                     delta = delta / 0.8;
                     if (delta > 1.0) delta = 1.0;
@@ -621,8 +621,8 @@
                 if (x >= this.slider2.bounds.x && x < this.slider2.bounds.x + this.slider2.bounds.width &&
                     y >= this.slider2.bounds.y && y < this.slider2.bounds.y + this.slider2.bounds.height) {
                     const localY = (y - this.slider2.bounds.y) / this.slider2.bounds.height;
-                    const invertedY = 1.0 - localY;
-                    let delta = invertedY - 0.1;
+                    // Don't flip Y here - the shader already handles the flip
+                    let delta = localY - 0.1;
                     if (delta < 0.0) delta = 0.0;
                     delta = delta / 0.8;
                     if (delta > 1.0) delta = 1.0;
