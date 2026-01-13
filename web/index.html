@@ -169,9 +169,8 @@
                 this.canvas.width = this.canvasWidth;
                 this.canvas.height = this.canvasHeight;
 
-                // Frame counter (time-based, 60 virtual FPS)
+                // Frame counter
                 this.frameCount = 0;
-                this.startTime = null;
 
                 // Controls state
                 this.control1 = {
@@ -573,21 +572,14 @@
                     this.thirdSize, this.secondSize, this.sliderWidth, this.sideSize);
             }
 
-            animate(timestamp) {
-                // Initialize startTime on first frame
-                if (this.startTime === null) {
-                    this.startTime = timestamp;
-                }
-
-                // Calculate frameCount based on elapsed time at 60 virtual FPS
-                const elapsedSeconds = (timestamp - this.startTime) / 1000;
-                this.frameCount = Math.floor(elapsedSeconds * 60);
+            animate() {
+                this.frameCount++;
 
                 this.applyTransforms();
                 this.shiftData();
                 this.drawImages();
 
-                requestAnimationFrame((ts) => this.animate(ts));
+                requestAnimationFrame(() => this.animate());
             }
 
             handleClick(x, y) {
