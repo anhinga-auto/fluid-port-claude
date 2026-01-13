@@ -21,8 +21,6 @@
         canvas {
             display: block;
             cursor: pointer;
-            width: 970px;
-            height: 915px;
         }
     </style>
 </head>
@@ -170,6 +168,11 @@
 
                 this.canvas.width = this.canvasWidth;
                 this.canvas.height = this.canvasHeight;
+
+                // Set CSS display size to match Processing behavior (ignore OS scaling)
+                const dpr = window.devicePixelRatio || 1;
+                this.canvas.style.width = (this.canvasWidth / dpr) + 'px';
+                this.canvas.style.height = (this.canvasHeight / dpr) + 'px';
 
                 // Frame counter
                 this.frameCount = 0;
