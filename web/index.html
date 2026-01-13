@@ -62,11 +62,16 @@
         uniform vec2 u_center;
         uniform float u_time;
         uniform float u_distanceCoef;
+        uniform vec2 u_textureDimensions;
         out vec4 fragColor;
 
         void main() {
             vec2 coord = v_texCoord;
-            float d = distance(coord, u_center);
+            // Convert normalized coordinates to pixel coordinates for distance calculation
+            vec2 pixelCoord = coord * u_textureDimensions;
+            vec2 pixelCenter = u_center * u_textureDimensions;
+            float d = distance(pixelCoord, pixelCenter);
+
             float shift = u_time / (1.0 + 0.01 * u_time);
             float mod = 0.25 * sin(u_distanceCoef * (d / u_time + shift)) + 0.75;
             vec2 displaced = u_center + (coord - u_center) * mod;
@@ -423,6 +428,7 @@
                 gl.uniform2f(gl.getUniformLocation(program, 'u_center'), control.centerX, control.centerY);
                 gl.uniform1f(gl.getUniformLocation(program, 'u_time'), Math.max(effectiveFrameCount, 1.0));
                 gl.uniform1f(gl.getUniformLocation(program, 'u_distanceCoef'), distanceCoef);
+                gl.uniform2f(gl.getUniformLocation(program, 'u_textureDimensions'), outputLayer.width, outputLayer.height);
 
                 gl.drawArrays(gl.TRIANGLES, 0, 6);
             }
