@@ -44,5 +44,53 @@ Then I asked
 
 and Claude Opus 4.5 suggested that it might be a good idea to put that right into CLAUDE.md, but when I started working with Claude Code I forgot to do that, and it was fine, there was no need to do that (I was using Sonnet 4.5 under Claude Code, because that was all that's available at a minimal paid plan (with the minimal payment plan, Opus 4.5 was available only in Chat, but not in Claude Code) and Opus 4.5 was a smarter system, but Sonnet 4.5 was pretty smart too and often sufficient).
 
-At this point I started to set-up Claude Code (on the web)... TO BE CONTINUED
+***
+
+At this point I started to set-up Claude Code (on the web). Earlier, I had dialogs with both Claude AI and ChatGPT about using Claude Code on the web and Codex on the web respectively:
+
+https://claude.ai/share/c7fa8e9b-64bb-47a9-8756-c3ebd75ba45e
+
+https://chatgpt.com/share/696493f7-949c-8010-843b-397f57cbce6a
+
+ChatGPT was much more fluent speaking about Codex, whereas Claude AI had to be convinced that Claude Code on the web exists, but afterwards it gave good information.
+
+ME, successfully convincing Opus 4.5:
+
+>This seems to say I can run it on the cloud: https://claude.ai/code/onboarding
+
+One of the reasons for this difference was that running on the web in a host company sandbox was the main original form of Codex, whereas for Claude Code this option had been added recently. 
+
+Then Opus 4.5 got confused again and started to give me references to Cursor, I had to convince it again to look at the system I wanted to use:
+
+ME:
+
+>No, I don't think this has anything to do with Cursor IDE. I am not using Cursor. I'll be using this: https://claude.ai/code/onboarding
+
+Opus 4.5:
+
+>Let me check the official Claude Code documentation for the specific web onboarding process.
+>
+>Now I have the official documentation. Here's how connecting GitHub works for Claude Code on the web:
+
+>#The setup process:
+
+Visit claude.ai/code
+Connect your GitHub account
+Install the Claude GitHub app in your repositories
+Select your default environment
+Submit your coding task
+
+It uses a GitHub App, not fine-grained tokens:
+Claude Code on the web uses a GitHub App that you install on your repositories, rather than fine-grained personal access tokens that you'd create yourself. When you install the app, you choose which repositories to grant access to.
+How the security works behind the scenes:
+All GitHub operations go through a dedicated proxy service. Inside the sandbox, the git client authenticates using a custom-built scoped credential. The proxy:
+
+Manages GitHub authentication securely—the git client uses a scoped credential inside the sandbox, which the proxy verifies and translates to your actual GitHub authentication token
+Restricts git push operations to the current working branch for safety
+Enables cloning, fetching, and PR operations while maintaining security boundaries
+
+Your actual GitHub credentials are never inside the sandbox with Claude Code. Authentication is handled through the secure proxy using scoped credentials.
+So in short: You don't need to manually create tokens. You install the Claude GitHub App, select which repositories it can access, and the system handles authentication securely through a proxy that limits what Claude can do (like only pushing to the current working branch).
+
+
 
