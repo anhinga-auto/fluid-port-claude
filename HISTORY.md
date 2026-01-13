@@ -36,7 +36,7 @@ ME:
 
 >Thanks! Rose is very interesting, I have not known about it. Unfortunately, it progressed to 0.4.10 in April 2024 and then stopped progressing. Yes, I think it makes sense to start with plain shaders for now. I am going to prepare a project for Claude Code. How should I instruct Claude Code? (I'll create a dedicated GitHub repository for this project, and I'll have a subdirectory with Processing code to be ported. I'd like an equivalent JS-oriented shader-based version and the instructions for how to run it. Where should I put the information for Claude Code in that repository?)
 
-At that Claude AI gave me a suggested structure of the project and a sketch for CLAUDE.md (and I lightly edited all that, in particular, choosing WebGL2 over WebGPU, keeping my old name for the directory containing Processing code.
+At that Claude AI gave me a suggested structure of the project and a sketch for CLAUDE.md (and I lightly edited all that, in particular, choosing WebGL2 over WebGPU and keeping my old name for the directory containing Processing code).
 
 Then I asked 
 
@@ -44,5 +44,5 @@ Then I asked
 
 and Claude Opus 4.5 suggested that it might be a good idea to put that right into CLAUDE.md, but when I started working with Claude Code I forgot to do that, and it was fine, there was no need to do that (I was using Sonnet 4.5 under Claude Code, because that was all that's available at a minimal paid plan (with the minimal payment plan, Opus 4.5 was available only in Chat, but not in Claude Code) and Opus 4.5 was a smarter system, but Sonnet 4.5 was pretty smart too and often sufficient).
 
-
+At this point I started to set-up Claude Code (on the web)... TO BE CONTINUED
 
