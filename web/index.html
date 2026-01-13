@@ -609,24 +609,24 @@
                 if (x >= this.slider1.bounds.x && x < this.slider1.bounds.x + this.slider1.bounds.width &&
                     y >= this.slider1.bounds.y && y < this.slider1.bounds.y + this.slider1.bounds.height) {
                     const localY = (y - this.slider1.bounds.y) / this.slider1.bounds.height;
-                    // Don't flip Y here - the shader already handles the flip
+                    // Invert Y to account for canvas vs WebGL coordinate systems
                     let delta = localY - 0.1;
                     if (delta < 0.0) delta = 0.0;
                     delta = delta / 0.8;
                     if (delta > 1.0) delta = 1.0;
-                    this.slider1.value = delta;
+                    this.slider1.value = 1.0 - delta; // Invert so white is above click, black below
                 }
 
                 // Check if click is in slider2 bounds
                 if (x >= this.slider2.bounds.x && x < this.slider2.bounds.x + this.slider2.bounds.width &&
                     y >= this.slider2.bounds.y && y < this.slider2.bounds.y + this.slider2.bounds.height) {
                     const localY = (y - this.slider2.bounds.y) / this.slider2.bounds.height;
-                    // Don't flip Y here - the shader already handles the flip
+                    // Invert Y to account for canvas vs WebGL coordinate systems
                     let delta = localY - 0.1;
                     if (delta < 0.0) delta = 0.0;
                     delta = delta / 0.8;
                     if (delta > 1.0) delta = 1.0;
-                    this.slider2.value = delta;
+                    this.slider2.value = 1.0 - delta; // Invert so white is above click, black below
                 }
             }
 
