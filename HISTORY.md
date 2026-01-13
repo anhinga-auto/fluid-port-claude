@@ -96,5 +96,36 @@ Opus 4.5:
 >
 >**So in short:** You don't need to manually create tokens. You install the Claude GitHub App, select which repositories it can access, and the system handles authentication securely through a proxy that limits what Claude can do (like only pushing to the current working branch).
 
+During the actual set-up I needed to be logged in as `anhinga-auto` in the browser, not as `anhinga`, because it used those login cookies to decide what to offer.
+
+Then I connected to this particular repository (it needed to exist by this point in the process) with default settings Claude Code offered and was able to start to work.
+
+***
+
+Actual work was done via pull requests. Usually the system would produce a pull request in one shot, but if one formulated a task as a question then the pull request was produced at a later stage after a dialog. One could produce multiple request within one dialog, but the system got confused after the first one and could not make "Create PR" button, instead making "View PR" button for the old pull request, so it had to be asked specifically to actually produce a pull request and give a link to it.
+
+I created a target [web](web} directory with README.md file which said:
+
+`Claude Code will create files here, will replace this README with instructions how to run them`
+
+First request was simply:
+
+>Read the repository and do the task described in CLAUDE.md
+
+The system one-shotted a working app with the instructions of how to run with seemingly only one bug (later it turned out there are more bugs).
+
+I used Option 2 to run it (using Python HTTP server locally).
+
+I actually ran it first time before reading the code, that's a bad habit, one should read new untrusted code before deciding it's OK to run it on one's computer.
+
+Generally, I visually evaluated pull requests, wrote my reviews of each of them, then merged, and only then tested.
+
+A more robust workflow would be to checkout a PR branch and test it before merging. I decided to revert a merged pull request once, that was easy. 
+
+If one is really converned about security, one might do the evals in a sandbox, but one should remember that this is likely to be used by people on naked computers, so one should be mindful of code quality in this sense.
+
+***
+
+Now to error fixing... TO BE CONTINUED
 
 
